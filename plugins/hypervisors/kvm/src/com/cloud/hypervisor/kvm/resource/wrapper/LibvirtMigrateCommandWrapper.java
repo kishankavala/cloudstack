@@ -19,6 +19,7 @@
 
 package com.cloud.hypervisor.kvm.resource.wrapper;
 
+import java.io.File;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -134,6 +135,11 @@ public final class LibvirtMigrateCommandWrapper extends CommandWrapper<MigrateCo
             if (destDomain != null) {
                 for (final DiskDef disk : disks) {
                     libvirtComputingResource.cleanupDisk(disk);
+                }
+                //Cleanup config drive if exists
+                File configDriveIso = new File("/var/lib/libvirt/images/"+vmName+".iso");
+                if(configDriveIso.exists()){
+                    configDriveIso.delete();
                 }
             }
         } catch (final LibvirtException e) {

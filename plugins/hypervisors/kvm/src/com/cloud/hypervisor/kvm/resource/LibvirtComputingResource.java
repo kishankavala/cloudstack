@@ -17,10 +17,13 @@
 package com.cloud.hypervisor.kvm.resource;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.InetAddress;
 import java.net.URI;
@@ -2039,8 +2042,18 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
             final DiskDef disk = new DiskDef();
             if (volume.getType() == Volume.Type.ISO) {
                 if (volPath == null) {
-                    /* Add iso as placeholder */
-                    disk.defISODisk(null);
+                    if(vmSpec.getVmData() != null){
+                        // for shared network with config drive
+                        final String path = createConfigDriveIsoForVM(conn, vmName, vmSpec.getVmData(), vmSpec.getConfigDriveLabel());
+                        if(path != null) {
+                            disk.defISODisk(path);
+                        } else {
+                            throw new InternalErrorException("Error while creating config drive ISO on host");
+                        }
+                    } else {
+                        //create placeholder ISO only when config drive is not used
+                        disk.defISODisk(null);
+                    }
                 } else {
                     disk.defISODisk(volPath);
                 }
@@ -2133,6 +2146,93 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
         }
 
     }
+
+    public String createConfigDriveIsoForVM(Connect conn, String vmName, List<String[]> vmDataList, String configDriveLabel)
+            throws LibvirtException, InternalErrorException, URISyntaxException {
+
+        String isoPath = "/tmp/"+vmName+"/configDrive/";
+        String configDriveName = "cloudstack/";
+        String path = "/var/lib/libvirt/images/";
+
+        //create folder for the VM
+
+        if (vmDataList != null) {
+            for (String[] item : vmDataList) {
+                String dataType = item[0];
+                String fileName = item[1];
+                String content = item[2];
+
+                // create file with content in folder
+
+                if (dataType != null && !dataType.isEmpty()) {
+                    //create folder
+                    String  folder = isoPath+configDriveName+dataType;
+                    if (folder != null && !folder.isEmpty()) {
+                        File dir = new File(folder);
+                        boolean result = true;
+
+                        try {
+                            if (!dir.exists()) {
+                                dir.mkdirs();
+                            }
+                        }catch (SecurityException ex) {
+                            s_logger.debug("Failed to create dir "+ ex.getMessage());
+                            return null;
+                        }
+
+                        if (result && content != null && !content.isEmpty()) {
+                            try {
+                                File file = new File(folder+"/"+fileName+".txt");
+                                FileWriter fw = new FileWriter(file.getAbsoluteFile());
+                                BufferedWriter bw = new BufferedWriter(fw);
+                                bw.write(content);
+                                bw.close();
+                            } catch (IOException ex) {
+                                s_logger.debug("Failed to create file "+ ex.getMessage());
+                                return null;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+
+        String s = null;
+        try {
+            String cmd =  "/usr/bin/mkisofs -iso-level 3 -V "+ configDriveLabel +" -o "+ path+vmName +".iso " + isoPath;
+            Process p = Runtime.getRuntime().exec(cmd);
+
+            BufferedReader stdInput = new BufferedReader(new
+                    InputStreamReader(p.getInputStream()));
+
+            BufferedReader stdError = new BufferedReader(new
+                    InputStreamReader(p.getErrorStream()));
+
+            s_logger.debug("Executing:\n "+cmd);
+
+
+            // read any errors from the attempted command
+            s_logger.debug("Standard error of the command (if any):\n");
+            while ((s = stdError.readLine()) != null) {
+                s_logger.debug(s);
+            }
+
+        } catch (IOException e) {
+            s_logger.debug(e.getMessage());
+            return null;
+        }
+
+        //clean up temporary config drive files
+        try {
+            FileUtils.deleteDirectory(new File("/tmp/"+vmName));
+        } catch (IOException e) {
+            s_logger.debug(e.getMessage());
+        }
+
+        return path+ vmName+".iso";
+    }
+
 
     private void createVif(final LibvirtVMDef vm, final NicTO nic, final String nicAdapter) throws InternalErrorException, LibvirtException {
         vm.getDevices().addDevice(getVifDriver(nic.getType()).plug(nic, vm.getPlatformEmulator().toString(), nicAdapter).toString());

@@ -20,6 +20,7 @@
 package com.cloud.hypervisor.kvm.resource.wrapper;
 
 import java.net.URISyntaxException;
+import java.util.List;
 
 import org.apache.log4j.Logger;
 import org.libvirt.Connect;
@@ -68,6 +69,15 @@ public final class LibvirtPrepareForMigrationCommandWrapper extends CommandWrapp
             for (final DiskTO volume : volumes) {
                 if (volume.getType() == Volume.Type.ISO) {
                     libvirtComputingResource.getVolumePath(conn, volume);
+                }
+            }
+
+            //create config drive ISO
+            List<String[]> vmData = vm.getVmData();
+            if(vmData != null){
+                String isoPath = libvirtComputingResource.createConfigDriveIsoForVM(conn, vm.getName(), vmData, vm.getConfigDriveLabel());
+                if(isoPath == null){
+                    return new PrepareForMigrationAnswer(command, "failed to create config drive ISO on host");
                 }
             }
 

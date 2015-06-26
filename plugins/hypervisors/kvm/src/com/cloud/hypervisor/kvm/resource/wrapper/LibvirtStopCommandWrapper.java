@@ -19,6 +19,7 @@
 
 package com.cloud.hypervisor.kvm.resource.wrapper;
 
+import java.io.File;
 import java.util.List;
 
 import org.apache.log4j.Logger;
@@ -72,6 +73,13 @@ public final class LibvirtStopCommandWrapper extends CommandWrapper<StopCommand,
                 for (final DiskDef disk : disks) {
                     libvirtComputingResource.cleanupDisk(disk);
                 }
+
+                //Cleanup config drive if exists
+                File configDriveIso = new File("/var/lib/libvirt/images/"+vmName+".iso");
+                if(configDriveIso.exists()){
+                    configDriveIso.delete();
+                }
+
                 for (final InterfaceDef iface : ifaces) {
                     // We don't know which "traffic type" is associated with
                     // each interface at this point, so inform all vif drivers
