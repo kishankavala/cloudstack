@@ -5097,6 +5097,13 @@ public class LibvirtComputingResourceTest {
         final Answer answer = wrapper.execute(command, libvirtComputingResource);
 
         assertTrue(answer.getResult());
+
+        //Test IP not in CIDR
+        when(Script.runSimpleBashScript(virtLs)).thenReturn("dhclient-eth0.leases");
+        when(Script.runSimpleBashScript(virtCat)).thenReturn("10.2.1.5");
+        final Answer answerFail = wrapper.execute(command, libvirtComputingResource);
+
+        assertFalse(answerFail.getResult());
     }
 
 }
