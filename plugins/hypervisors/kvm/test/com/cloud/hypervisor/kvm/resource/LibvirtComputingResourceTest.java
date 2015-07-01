@@ -28,6 +28,9 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -70,7 +73,6 @@ import org.mockito.Matchers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.runners.MockitoJUnitRunner;
 import org.w3c.dom.Document;
 import org.xml.sax.SAXException;
 
@@ -94,6 +96,7 @@ import com.cloud.agent.api.FenceCommand;
 import com.cloud.agent.api.GetHostStatsCommand;
 import com.cloud.agent.api.GetStorageStatsCommand;
 import com.cloud.agent.api.GetVmDiskStatsCommand;
+import com.cloud.agent.api.GetVmIpAddressCommand;
 import com.cloud.agent.api.GetVmStatsCommand;
 import com.cloud.agent.api.GetVncPortCommand;
 import com.cloud.agent.api.MaintainCommand;
@@ -167,12 +170,14 @@ import com.cloud.storage.template.TemplateLocation;
 import com.cloud.template.VirtualMachineTemplate.BootloaderType;
 import com.cloud.utils.Pair;
 import com.cloud.utils.exception.CloudRuntimeException;
+import com.cloud.utils.script.Script;
 import com.cloud.vm.DiskProfile;
 import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachine.PowerState;
 import com.cloud.vm.VirtualMachine.Type;
 
-@RunWith(MockitoJUnitRunner.class)
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(Script.class)
 public class LibvirtComputingResourceTest {
 
     @Mock
@@ -1030,6 +1035,7 @@ public class LibvirtComputingResourceTest {
 
         when(vm.getNics()).thenReturn(new NicTO[]{nicTO});
         when(vm.getDisks()).thenReturn(new DiskTO[]{diskTO});
+        when(vm.getVmData()).thenReturn(null);
 
         when(nicTO.getType()).thenReturn(TrafficType.Guest);
         when(diskTO.getType()).thenReturn(Volume.Type.ISO);
@@ -1982,7 +1988,7 @@ public class LibvirtComputingResourceTest {
         final StoragePool pool = Mockito.mock(StoragePool.class);
 
         final List<KVMPhysicalDisk> disks = new ArrayList<KVMPhysicalDisk>();
-        final List<KVMPhysicalDisk> spiedDisks = Mockito.spy(disks);
+        final List<KVMPhysicalDisk> spiedDisks = PowerMockito.spy(disks);
 
         final String name = "Test";
         final String url = "http://template/";
@@ -5072,4 +5078,25 @@ public class LibvirtComputingResourceTest {
             fail(e.getMessage());
         }
     }
+
+    @Test
+    public void testGetVmIpAddressCommand() {
+        PowerMockito.mockStatic(Script.class);
+        final GetVmIpAddressCommand command = new GetVmIpAddressCommand("Test", "10.1.1.0/24", false);
+        String leaseFile = "dhclient-eth0.leases";
+        String virtLs = new StringBuilder().append("virt-ls ").append(command.getVmName())
+                .append(" /var/lib/dhclient/ | grep .*\\*.leases").toString();
+        String virtCat = new StringBuilder().append("virt-cat ").append(command.getVmName())
+                .append(" /var/lib/dhclient/dhclient-eth0.leases | tail -16 | grep 'fixed-address' | awk '{print $2}' | sed -e 's/;//'").toString();
+
+        final LibvirtRequestWrapper wrapper = LibvirtRequestWrapper.getInstance();
+        assertNotNull(wrapper);
+
+        when(Script.runSimpleBashScript(virtLs)).thenReturn("dhclient-eth0.leases");
+        when(Script.runSimpleBashScript(virtCat)).thenReturn("10.1.1.5");
+        final Answer answer = wrapper.execute(command, libvirtComputingResource);
+
+        assertTrue(answer.getResult());
+    }
+
 }
