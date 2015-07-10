@@ -5104,9 +5104,20 @@ public class LibvirtComputingResourceTest {
     }
 
     public void testUpdateHostPasswordCommand() {
+        final LibvirtUtilitiesHelper libvirtUtilitiesHelper = Mockito.mock(LibvirtUtilitiesHelper.class);
+        final Script script = Mockito.mock(Script.class);
+
+        final String hostIp = "127.0.0.1";
         final String username = "root";
         final String newPassword = "password";
-        final UpdateHostPasswordCommand command = new UpdateHostPasswordCommand(username, newPassword);
+
+        final UpdateHostPasswordCommand command = new UpdateHostPasswordCommand(username, newPassword, hostIp);
+
+        when(libvirtComputingResource.getLibvirtUtilitiesHelper()).thenReturn(libvirtUtilitiesHelper);
+        when(libvirtComputingResource.getUpdateHostPasswdPath()).thenReturn("/tmp");
+        when(libvirtUtilitiesHelper.buildScript(libvirtComputingResource.getUpdateHostPasswdPath())).thenReturn(script);
+
+        when(script.execute()).thenReturn(null);
 
         final LibvirtRequestWrapper wrapper = LibvirtRequestWrapper.getInstance();
         assertNotNull(wrapper);
@@ -5114,5 +5125,30 @@ public class LibvirtComputingResourceTest {
         final Answer answer = wrapper.execute(command, libvirtComputingResource);
 
         assertTrue(answer.getResult());
+    }
+
+    @Test
+    public void testUpdateHostPasswordCommandFail() {
+        final LibvirtUtilitiesHelper libvirtUtilitiesHelper = Mockito.mock(LibvirtUtilitiesHelper.class);
+        final Script script = Mockito.mock(Script.class);
+
+        final String hostIp = "127.0.0.1";
+        final String username = "root";
+        final String newPassword = "password";
+
+        final UpdateHostPasswordCommand command = new UpdateHostPasswordCommand(username, newPassword, hostIp);
+
+        when(libvirtComputingResource.getLibvirtUtilitiesHelper()).thenReturn(libvirtUtilitiesHelper);
+        when(libvirtComputingResource.getUpdateHostPasswdPath()).thenReturn("/tmp");
+        when(libvirtUtilitiesHelper.buildScript(libvirtComputingResource.getUpdateHostPasswdPath())).thenReturn(script);
+
+        when(script.execute()).thenReturn("#FAIL");
+
+        final LibvirtRequestWrapper wrapper = LibvirtRequestWrapper.getInstance();
+        assertNotNull(wrapper);
+
+        final Answer answer = wrapper.execute(command, libvirtComputingResource);
+
+        assertFalse(answer.getResult());
     }
 }
