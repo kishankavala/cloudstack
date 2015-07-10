@@ -130,6 +130,7 @@ import com.cloud.agent.api.SecurityGroupRulesCmd.IpPortAndProto;
 import com.cloud.agent.api.StartCommand;
 import com.cloud.agent.api.StopCommand;
 import com.cloud.agent.api.UnPlugNicCommand;
+import com.cloud.agent.api.UpdateHostPasswordCommand;
 import com.cloud.agent.api.UpgradeSnapshotCommand;
 import com.cloud.agent.api.VmStatsEntry;
 import com.cloud.agent.api.check.CheckSshCommand;
@@ -5088,10 +5089,6 @@ public class LibvirtComputingResourceTest {
                 .append(" /var/lib/dhclient/ | grep .*\\*.leases").toString();
         String virtCat = new StringBuilder().append("virt-cat ").append(command.getVmName())
                 .append(" /var/lib/dhclient/dhclient-eth0.leases | tail -16 | grep 'fixed-address' | awk '{print $2}' | sed -e 's/;//'").toString();
-
-        final LibvirtRequestWrapper wrapper = LibvirtRequestWrapper.getInstance();
-        assertNotNull(wrapper);
-
         when(Script.runSimpleBashScript(virtLs)).thenReturn("dhclient-eth0.leases");
         when(Script.runSimpleBashScript(virtCat)).thenReturn("10.1.1.5");
         final Answer answer = wrapper.execute(command, libvirtComputingResource);
@@ -5106,4 +5103,16 @@ public class LibvirtComputingResourceTest {
         assertFalse(answerFail.getResult());
     }
 
+    public void testUpdateHostPasswordCommand() {
+        final String username = "root";
+        final String newPassword = "password";
+        final UpdateHostPasswordCommand command = new UpdateHostPasswordCommand(username, newPassword);
+
+        final LibvirtRequestWrapper wrapper = LibvirtRequestWrapper.getInstance();
+        assertNotNull(wrapper);
+
+        final Answer answer = wrapper.execute(command, libvirtComputingResource);
+
+        assertTrue(answer.getResult());
+    }
 }
