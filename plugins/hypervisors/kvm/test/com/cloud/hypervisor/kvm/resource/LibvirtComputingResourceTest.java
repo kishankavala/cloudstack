@@ -5091,6 +5091,7 @@ public class LibvirtComputingResourceTest {
                 .append(" /var/lib/dhclient/dhclient-eth0.leases | tail -16 | grep 'fixed-address' | awk '{print $2}' | sed -e 's/;//'").toString();
         when(Script.runSimpleBashScript(virtLs)).thenReturn("dhclient-eth0.leases");
         when(Script.runSimpleBashScript(virtCat)).thenReturn("10.1.1.5");
+        final LibvirtRequestWrapper wrapper = LibvirtRequestWrapper.getInstance();
         final Answer answer = wrapper.execute(command, libvirtComputingResource);
 
         assertTrue(answer.getResult());
