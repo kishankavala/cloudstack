@@ -429,6 +429,10 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
         return storageHandler;
     }
 
+    public String getLocalStoragePath(){
+        return _localStoragePath;
+    }
+
     private static final class KeyValueInterpreter extends OutputInterpreter {
         private final Map<String, String> map = new HashMap<String, String>();
 
@@ -2169,7 +2173,7 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
 
         String isoPath = "/tmp/"+vmName+"/configDrive/";
         String configDriveName = "cloudstack/";
-        String path = "/var/lib/libvirt/images/";
+        String path = _localStoragePath;
 
         //create folder for the VM
 

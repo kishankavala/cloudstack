@@ -137,7 +137,7 @@ public final class LibvirtMigrateCommandWrapper extends CommandWrapper<MigrateCo
                     libvirtComputingResource.cleanupDisk(disk);
                 }
                 //Cleanup config drive if exists
-                File configDriveIso = new File("/var/lib/libvirt/images/"+vmName+".iso");
+                File configDriveIso = new File(libvirtComputingResource.getLocalStoragePath()+vmName+".iso");
                 if(configDriveIso.exists()){
                     configDriveIso.delete();
                 }
