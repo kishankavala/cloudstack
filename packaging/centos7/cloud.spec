@@ -114,6 +114,8 @@ Requires: perl
 Requires: libvirt-python
 Requires: qemu-img
 Requires: qemu-kvm
+Requires: genisoimage
+Requires: libguestfs-tools
 Provides: cloud-agent
 Group: System Environment/Libraries
 %description agent
