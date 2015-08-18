@@ -75,7 +75,7 @@ public final class LibvirtStopCommandWrapper extends CommandWrapper<StopCommand,
                 }
 
                 //Cleanup config drive if exists
-                File configDriveIso = new File("/var/lib/libvirt/images/"+vmName+".iso");
+                File configDriveIso = new File(libvirtComputingResource.getLocalStoragePath()+vmName+".iso");
                 if(configDriveIso.exists()){
                     configDriveIso.delete();
                 }

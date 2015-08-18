@@ -2221,7 +2221,7 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
 
         String s = null;
         try {
-            String cmd =  "/usr/bin/mkisofs -iso-level 3 -V "+ configDriveLabel +" -o "+ path+vmName +".iso " + isoPath;
+            String cmd =  "mkisofs -iso-level 3 -V "+ configDriveLabel +" -o "+ path+vmName +".iso " + isoPath;
             Process p = Runtime.getRuntime().exec(cmd);
 
             BufferedReader stdInput = new BufferedReader(new
