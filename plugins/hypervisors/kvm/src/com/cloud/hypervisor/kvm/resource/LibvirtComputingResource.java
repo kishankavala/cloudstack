@@ -49,6 +49,7 @@ import javax.naming.ConfigurationException;
 
 import org.apache.cloudstack.storage.to.PrimaryDataStoreTO;
 import org.apache.cloudstack.storage.to.VolumeObjectTO;
+import org.apache.cloudstack.utils.hypervisor.HypervisorUtils;
 import org.apache.cloudstack.utils.linux.CPUStat;
 import org.apache.cloudstack.utils.linux.MemStat;
 import org.apache.cloudstack.utils.qemu.QemuImg.PhysicalDiskFormat;
@@ -183,7 +184,6 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
     private String _ovsPvlanVmPath;
     private String _routerProxyPath;
     private String _ovsTunnelPath;
-    private String _setupCgroupPath;
     private String _host;
     private String _dcId;
     private String _pod;
@@ -239,6 +239,10 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
     protected int _migrateSpeed;
     protected int _migrateDowntime;
     protected int _migratePauseAfter;
+    protected boolean _diskActivityCheckEnabled;
+    protected long _diskActivityCheckFileSizeMin = 10485760; // 10MB
+    protected int _diskActivityCheckTimeoutSeconds = 120; // 120s
+    protected long _diskActivityInactiveThresholdMilliseconds = 30000; // 30s
 
     private final Map <String, String> _pifs = new HashMap<String, String>();
     private final Map<String, VmStats> _vmStats = new ConcurrentHashMap<String, VmStats>();
@@ -262,7 +266,7 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
 
     private String _updateHostPasswdPath;
 
-    private int _dom0MinMem;
+    private long _dom0MinMem;
 
     protected boolean _disconnected = true;
     protected int _cmdsTimeout;
@@ -706,17 +710,6 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
             _hypervisorType = HypervisorType.KVM;
         }
 
-        //Verify that cpu,cpuacct cgroups are not co-mounted
-        if(HypervisorType.LXC.equals(getHypervisorType())){
-            _setupCgroupPath = Script.findScript(kvmScriptsDir, "setup-cgroups.sh");
-            if (_setupCgroupPath == null) {
-                throw new ConfigurationException("Unable to find the setup-cgroups.sh");
-            }
-            if(!checkCgroups()){
-                throw new ConfigurationException("cpu,cpuacct cgroups are co-mounted");
-            }
-        }
-
         _hypervisorURI = (String)params.get("hypervisor.uri");
         if (_hypervisorURI == null) {
             _hypervisorURI = LibvirtConnection.getHypervisorURI(_hypervisorType.toString());
@@ -805,7 +798,8 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
         _videoRam = NumbersUtil.parseInt(value, 0);
 
         value = (String)params.get("host.reserved.mem.mb");
-        _dom0MinMem = NumbersUtil.parseInt(value, 0) * 1024 * 1024;
+        // Reserve 1GB unless admin overrides
+        _dom0MinMem = NumbersUtil.parseInt(value, 1024) * 1024 * 1024L;
 
         value = (String) params.get("kvmclock.disable");
         if (Boolean.parseBoolean(value)) {
@@ -962,6 +956,7 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
         params.put("libvirtVersion", _hypervisorLibvirtVersion);
 
         configureVifDrivers(params);
+        configureDiskActivityChecks(params);
 
         final KVMStorageProcessor storageProcessor = new KVMStorageProcessor(_storagePoolMgr, this);
         storageProcessor.configure(name, params);
@@ -975,6 +970,20 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
          * getOsVersion();
          */
         return true;
+    }
+
+    protected void configureDiskActivityChecks(final Map<String, Object> params) {
+        _diskActivityCheckEnabled = Boolean.parseBoolean((String)params.get("vm.diskactivity.checkenabled"));
+        if (_diskActivityCheckEnabled) {
+            int timeout = NumbersUtil.parseInt((String)params.get("vm.diskactivity.checktimeout_s"), 0);
+            if (timeout > 0) {
+                _diskActivityCheckTimeoutSeconds = timeout;
+            }
+            long inactiveTime = NumbersUtil.parseLong((String)params.get("vm.diskactivity.inactivetime_ms"), 0L);
+            if (inactiveTime > 0) {
+                _diskActivityInactiveThresholdMilliseconds = inactiveTime;
+            }
+        }
     }
 
     protected void configureVifDrivers(final Map<String, Object> params) throws ConfigurationException {
@@ -2042,6 +2051,17 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
                 volPath = physicalDisk.getPath();
             }
 
+            // check for disk activity, if detected we should exit because vm is running elsewhere
+            if (_diskActivityCheckEnabled && physicalDisk != null && physicalDisk.getFormat() == PhysicalDiskFormat.QCOW2) {
+                s_logger.debug("Checking physical disk file at path " + volPath + " for disk activity to ensure vm is not running elsewhere");
+                try {
+                    HypervisorUtils.checkVolumeFileForActivity(volPath, _diskActivityCheckTimeoutSeconds, _diskActivityInactiveThresholdMilliseconds, _diskActivityCheckFileSizeMin);
+                } catch (IOException ex) {
+                    throw new CloudRuntimeException("Unable to check physical disk file for activity", ex);
+                }
+                s_logger.debug("Disk activity check cleared");
+            }
+
             // if params contains a rootDiskController key, use its value (this is what other HVs are doing)
             DiskDef.DiskBus diskBusType = null;
             final Map <String, String> params = vmSpec.getDetails();
@@ -2690,16 +2710,13 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
 
         info.add((int)cpus);
         info.add(speed);
+        // Report system's RAM as actual RAM minus host OS reserved RAM
+        ram = ram - _dom0MinMem;
         info.add(ram);
         info.add(cap);
-        long dom0ram = Math.min(ram / 10, 768 * 1024 * 1024L);// save a maximum
-        // of 10% of
-        // system ram or
-        // 768M
-        dom0ram = Math.max(dom0ram, _dom0MinMem);
-        info.add(dom0ram);
+        info.add(_dom0MinMem);
         info.add(cpuSockets);
-        s_logger.debug("cpus=" + cpus + ", speed=" + speed + ", ram=" + ram + ", dom0ram=" + dom0ram + ", cpu sockets=" + cpuSockets);
+        s_logger.debug("cpus=" + cpus + ", speed=" + speed + ", ram=" + ram + ", _dom0MinMem=" + _dom0MinMem + ", cpu sockets=" + cpuSockets);
 
         return info;
     }
@@ -2719,7 +2736,10 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
         String msg = null;
         try {
             dm = conn.domainLookupByName(vmName);
-            String vmDef = dm.getXMLDesc(0);
+            // Get XML Dump including the secure information such as VNC password
+            // By passing 1, or VIR_DOMAIN_XML_SECURE flag
+            // https://libvirt.org/html/libvirt-libvirt-domain.html#virDomainXMLFlags
+            String vmDef = dm.getXMLDesc(1);
             final LibvirtDomainXMLParser parser = new LibvirtDomainXMLParser();
             parser.parseDomainXML(vmDef);
             for (final InterfaceDef nic : parser.getInterfaces()) {
@@ -3431,17 +3451,6 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
 
     public HypervisorType getHypervisorType(){
         return _hypervisorType;
-    }
-
-    private boolean checkCgroups(){
-        final Script command = new Script(_setupCgroupPath, 5 * 1000, s_logger);
-        String result;
-        result = command.execute();
-        if (result != null) {
-            s_logger.debug("cgroup check failed:" + result);
-            return false;
-        }
-        return true;
     }
 
     public String mapRbdDevice(final KVMPhysicalDisk disk){

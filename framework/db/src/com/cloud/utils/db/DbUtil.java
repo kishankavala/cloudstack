@@ -43,6 +43,8 @@ import javax.persistence.Transient;
 
 import org.apache.log4j.Logger;
 
+import static com.cloud.utils.AutoCloseableUtil.closeAutoCloseable;
+
 public class DbUtil {
     protected final static Logger s_logger = Logger.getLogger(DbUtil.class);
 
@@ -230,30 +232,26 @@ public class DbUtil {
     }
 
     public static boolean releaseGlobalLock(String name) {
-        Connection conn = getConnectionForGlobalLocks(name, false);
-        if (conn == null) {
-            s_logger.error("Unable to acquire DB connection for global lock system");
-            assert (false);
-            return false;
-        }
+        try (Connection conn = getConnectionForGlobalLocks(name, false);) {
+            if (conn == null) {
+                s_logger.error("Unable to acquire DB connection for global lock system");
+                assert (false);
+                return false;
+            }
 
-        PreparedStatement pstmt = null;
-        ResultSet rs = null;
-        try {
-            pstmt = conn.prepareStatement("SELECT COALESCE(RELEASE_LOCK(?), 0)");
-            pstmt.setString(1, name);
-            rs = pstmt.executeQuery();
-            if (rs != null && rs.first())
-                return rs.getInt(1) > 0;
-            s_logger.error("releaseGlobalLock:RELEASE_LOCK() returns unexpected result");
+            try (PreparedStatement pstmt = conn.prepareStatement("SELECT COALESCE(RELEASE_LOCK(?), 0)");) {
+                pstmt.setString(1, name);
+                try (ResultSet rs = pstmt.executeQuery();) {
+                    if (rs != null && rs.first()) {
+                        return rs.getInt(1) > 0;
+                    }
+                    s_logger.error("releaseGlobalLock:RELEASE_LOCK() returns unexpected result");
+                }
+            }
         } catch (SQLException e) {
             s_logger.error("RELEASE_LOCK() throws exception ", e);
         } catch (Throwable e) {
             s_logger.error("RELEASE_LOCK() throws exception ", e);
-        } finally {
-            closeResultSet(rs);
-            closeStatement(pstmt);
-            closeConnection(conn);
         }
         return false;
     }
@@ -282,18 +280,6 @@ public class DbUtil {
 
     public static void closeConnection(final Connection connection) {
         closeAutoCloseable(connection, "exception while close connection.");
-    }
-
-    public static void closeAutoCloseable(AutoCloseable ac, String message) {
-        try {
-
-            if (ac != null) {
-                ac.close();
-            }
-
-        } catch (Exception e) {
-            s_logger.warn("[ignored] " + message, e);
-        }
     }
 
 }

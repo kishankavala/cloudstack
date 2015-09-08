@@ -611,17 +611,19 @@ public class NetworkHelperImpl implements NetworkHelper {
     }
 
     @Override
-    public LinkedHashMap<Network, List<? extends NicProfile>>  configureDefaultNics(final RouterDeploymentDefinition routerDeploymentDefinition) throws ConcurrentOperationException, InsufficientAddressCapacityException {
+    public LinkedHashMap<Network, List<? extends NicProfile>> configureDefaultNics(final RouterDeploymentDefinition routerDeploymentDefinition) throws ConcurrentOperationException, InsufficientAddressCapacityException {
 
-        final LinkedHashMap<Network, List<? extends NicProfile>> networks = configureGuestNic(routerDeploymentDefinition);
+        final LinkedHashMap<Network, List<? extends NicProfile>> networks = new LinkedHashMap<Network, List<? extends NicProfile>>(3);
 
-        // 2) Control network
+        // 1) Control network
         s_logger.debug("Adding nic for Virtual Router in Control network ");
         final List<? extends NetworkOffering> offerings = _networkModel.getSystemAccountNetworkOfferings(NetworkOffering.SystemControlNetwork);
         final NetworkOffering controlOffering = offerings.get(0);
         final Network controlConfig = _networkMgr.setupNetwork(s_systemAccount, controlOffering, routerDeploymentDefinition.getPlan(), null, null, false).get(0);
+
         networks.put(controlConfig, new ArrayList<NicProfile>());
-        // 3) Public network
+
+        // 2) Public network
         if (routerDeploymentDefinition.isPublicNetwork()) {
             s_logger.debug("Adding nic for Virtual Router in Public network ");
             // if source nat service is supported by the network, get the source
@@ -629,9 +631,9 @@ public class NetworkHelperImpl implements NetworkHelper {
             final NicProfile defaultNic = new NicProfile();
             defaultNic.setDefaultNic(true);
             final PublicIp sourceNatIp = routerDeploymentDefinition.getSourceNatIP();
-            defaultNic.setIp4Address(sourceNatIp.getAddress().addr());
-            defaultNic.setGateway(sourceNatIp.getGateway());
-            defaultNic.setNetmask(sourceNatIp.getNetmask());
+            defaultNic.setIPv4Address(sourceNatIp.getAddress().addr());
+            defaultNic.setIPv4Gateway(sourceNatIp.getGateway());
+            defaultNic.setIPv4Netmask(sourceNatIp.getNetmask());
             defaultNic.setMacAddress(sourceNatIp.getMacAddress());
             // get broadcast from public network
             final Network pubNet = _networkDao.findById(sourceNatIp.getNetworkId());
@@ -644,13 +646,10 @@ public class NetworkHelperImpl implements NetworkHelper {
                 defaultNic.setBroadcastUri(BroadcastDomainType.Vlan.toUri(sourceNatIp.getVlanTag()));
                 defaultNic.setIsolationUri(IsolationType.Vlan.toUri(sourceNatIp.getVlanTag()));
             }
-            //If guest nic has already been addedd we will have 2 devices in the list.
-            if (networks.size() > 1) {
-                defaultNic.setDeviceId(2);
-            }
+
             final NetworkOffering publicOffering = _networkModel.getSystemAccountNetworkOfferings(NetworkOffering.SystemPublicNetwork).get(0);
             final List<? extends Network> publicNetworks = _networkMgr.setupNetwork(s_systemAccount, publicOffering, routerDeploymentDefinition.getPlan(), null, null, false);
-            final String publicIp = defaultNic.getIp4Address();
+            final String publicIp = defaultNic.getIPv4Address();
             // We want to use the identical MAC address for RvR on public
             // interface if possible
             final NicVO peerNic = _nicDao.findByIp4AddressAndNetworkId(publicIp, publicNetworks.get(0).getId());
@@ -660,6 +659,11 @@ public class NetworkHelperImpl implements NetworkHelper {
             }
             networks.put(publicNetworks.get(0), new ArrayList<NicProfile>(Arrays.asList(defaultNic)));
         }
+
+        // 3) Guest Network
+        final LinkedHashMap<Network, List<? extends NicProfile>> guestNic = configureGuestNic(routerDeploymentDefinition);
+        // The guest nic has to be added after the Control and Public nics.
+        networks.putAll(guestNic);
 
         return networks;
     }
@@ -679,10 +683,10 @@ public class NetworkHelperImpl implements NetworkHelper {
             if (!routerDeploymentDefinition.isPublicNetwork()) {
                 final Nic placeholder = _networkModel.getPlaceholderNicForRouter(guestNetwork, routerDeploymentDefinition.getPodId());
                 if (guestNetwork.getCidr() != null) {
-                    if (placeholder != null && placeholder.getIp4Address() != null) {
-                        s_logger.debug("Requesting ipv4 address " + placeholder.getIp4Address() + " stored in placeholder nic for the network "
+                    if (placeholder != null && placeholder.getIPv4Address() != null) {
+                        s_logger.debug("Requesting ipv4 address " + placeholder.getIPv4Address() + " stored in placeholder nic for the network "
                                 + guestNetwork);
-                        defaultNetworkStartIp = placeholder.getIp4Address();
+                        defaultNetworkStartIp = placeholder.getIPv4Address();
                     } else {
                         final String startIp = _networkModel.getStartIpAddress(guestNetwork.getId());
                         if (startIp != null
@@ -696,10 +700,10 @@ public class NetworkHelperImpl implements NetworkHelper {
                 }
 
                 if (guestNetwork.getIp6Cidr() != null) {
-                    if (placeholder != null && placeholder.getIp6Address() != null) {
-                        s_logger.debug("Requesting ipv6 address " + placeholder.getIp6Address() + " stored in placeholder nic for the network "
+                    if (placeholder != null && placeholder.getIPv6Address() != null) {
+                        s_logger.debug("Requesting ipv6 address " + placeholder.getIPv6Address() + " stored in placeholder nic for the network "
                                 + guestNetwork);
-                        defaultNetworkStartIpv6 = placeholder.getIp6Address();
+                        defaultNetworkStartIpv6 = placeholder.getIPv6Address();
                     } else {
                         final String startIpv6 = _networkModel.getStartIpv6Address(guestNetwork.getId());
                         if (startIpv6 != null && _ipv6Dao.findByNetworkIdAndIp(guestNetwork.getId(), startIpv6) == null) {
@@ -715,16 +719,16 @@ public class NetworkHelperImpl implements NetworkHelper {
             final NicProfile gatewayNic = new NicProfile(defaultNetworkStartIp, defaultNetworkStartIpv6);
             if (routerDeploymentDefinition.isPublicNetwork()) {
                 if (routerDeploymentDefinition.isRedundant()) {
-                    gatewayNic.setIp4Address(_ipAddrMgr.acquireGuestIpAddress(guestNetwork, null));
+                    gatewayNic.setIPv4Address(_ipAddrMgr.acquireGuestIpAddress(guestNetwork, null));
                 } else {
-                    gatewayNic.setIp4Address(guestNetwork.getGateway());
+                    gatewayNic.setIPv4Address(guestNetwork.getGateway());
                 }
                 gatewayNic.setBroadcastUri(guestNetwork.getBroadcastUri());
                 gatewayNic.setBroadcastType(guestNetwork.getBroadcastDomainType());
                 gatewayNic.setIsolationUri(guestNetwork.getBroadcastUri());
                 gatewayNic.setMode(guestNetwork.getMode());
                 final String gatewayCidr = guestNetwork.getCidr();
-                gatewayNic.setNetmask(NetUtils.getCidrNetmask(gatewayCidr));
+                gatewayNic.setIPv4Netmask(NetUtils.getCidrNetmask(gatewayCidr));
             } else {
                 gatewayNic.setDefaultNic(true);
             }
