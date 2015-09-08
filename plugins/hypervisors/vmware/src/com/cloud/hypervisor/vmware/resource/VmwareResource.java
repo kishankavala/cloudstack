@@ -589,7 +589,7 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
                 throw new Exception(msg);
             }
 
-            Pair<VirtualDisk, String> vdisk = vmMo.getDiskDevice(path, false);
+            Pair<VirtualDisk, String> vdisk = vmMo.getDiskDevice(path);
             if (vdisk == null) {
                 if (s_logger.isTraceEnabled())
                     s_logger.trace("resize volume done (failed)");
@@ -784,6 +784,7 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
                 Thread.currentThread();
                 Thread.sleep(1000);
             } catch (InterruptedException e) {
+                s_logger.debug("[ignored] interupted while trying to get mac.");
             }
         }
 
@@ -3347,7 +3348,7 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
     }
 
     private int getVirtualDiskInfo(VirtualMachineMO vmMo, String srcDiskName) throws Exception {
-        Pair<VirtualDisk, String> deviceInfo = vmMo.getDiskDevice(srcDiskName, false);
+        Pair<VirtualDisk, String> deviceInfo = vmMo.getDiskDevice(srcDiskName);
         if (deviceInfo == null) {
             throw new Exception("No such disk device: " + srcDiskName);
         }
@@ -4818,6 +4819,7 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
                     try {
                         Thread.sleep(5000);
                     } catch (InterruptedException ex) {
+                        s_logger.debug("[ignored] interupted while waiting to retry connect after failure.", e);
                     }
                 }
             } finally {
@@ -4832,6 +4834,7 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
             try {
                 Thread.sleep(1000);
             } catch (InterruptedException ex) {
+                s_logger.debug("[ignored] interupted while waiting to retry connect.");
             }
         }
 

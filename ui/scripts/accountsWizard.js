@@ -16,8 +16,9 @@
 // under the License.
 
 (function(cloudStack, $) {
-	var rootDomainId;
-	
+    var rootDomainId;
+
+
     cloudStack.accountsWizard = {
 
         informationWithinLdap: {
