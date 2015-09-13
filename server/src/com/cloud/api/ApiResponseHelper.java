@@ -2125,11 +2125,11 @@ public class ApiResponseHelper implements ResponseGenerator {
         response.setId(fwRule.getUuid());
         response.setProtocol(fwRule.getProtocol());
         if (fwRule.getSourcePortStart() != null) {
-            response.setStartPort(Integer.toString(fwRule.getSourcePortStart()));
+            response.setStartPort(fwRule.getSourcePortStart());
         }
 
         if (fwRule.getSourcePortEnd() != null) {
-            response.setEndPort(Integer.toString(fwRule.getSourcePortEnd()));
+            response.setEndPort(fwRule.getSourcePortEnd());
         }
 
         List<String> cidrs = ApiDBUtils.findFirewallSourceCidrs(fwRule.getId());
