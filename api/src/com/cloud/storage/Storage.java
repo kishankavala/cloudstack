@@ -111,6 +111,7 @@ public class Storage {
     public static enum TemplateType {
         ROUTING, // Router template
         SYSTEM, /* routing, system vm template */
+        SYSTEMUPDATE, /* routing, system vm template update package*/
         BUILTIN, /* buildin template */
         PERHOST, /* every host has this template, don't need to install it in secondary storage */
         USER /* User supplied template/iso */

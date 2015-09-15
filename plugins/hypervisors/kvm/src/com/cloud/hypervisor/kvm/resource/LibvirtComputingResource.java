@@ -312,6 +312,20 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
     }
 
     @Override
+    public ExecutionResult copyFileToVR(final String routerIp, final String poolUuid, final String localFilepath, final String remoteTargetDirectory) {
+        final File permKey = new File("/root/.ssh/id_rsa.cloud");
+        String error = null;
+
+        try {
+            SshHelper.scpTo(routerIp, 3922, "root", permKey, null, remoteTargetDirectory, localFilepath, null);
+        } catch (final Exception e) {
+            s_logger.warn("Failed to copy file " + localFilepath + " to VR " + routerIp, e);
+            error = e.getMessage();
+        }
+        return new ExecutionResult(error == null, error);
+    }
+
+    @Override
     public ExecutionResult prepareCommand(final NetworkElementCommand cmd) {
         //Update IP used to access router
         cmd.setRouterAccessIp(cmd.getAccessDetail(NetworkElementCommand.ROUTER_IP));

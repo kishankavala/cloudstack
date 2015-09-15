@@ -142,6 +142,11 @@ public class VirtualRoutingResourceTest implements VirtualRouterDeployer {
         return new ExecutionResult(true, null);
     }
 
+    @Override
+    public ExecutionResult copyFileToVR(String routerIp, String poolUuid, String localFilePath, String remoteTargetDirectory) {
+        return null;
+    }
+
     @Before
     public void setup() {
         _resource = new VirtualRoutingResource(this);

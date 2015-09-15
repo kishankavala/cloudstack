@@ -125,6 +125,7 @@ import org.apache.cloudstack.api.response.TemplatePermissionsResponse;
 import org.apache.cloudstack.api.response.TemplateResponse;
 import org.apache.cloudstack.api.response.TrafficMonitorResponse;
 import org.apache.cloudstack.api.response.TrafficTypeResponse;
+import org.apache.cloudstack.api.response.UpdateRouterResponse;
 import org.apache.cloudstack.api.response.UpgradeRouterTemplateResponse;
 import org.apache.cloudstack.api.response.UsageRecordResponse;
 import org.apache.cloudstack.api.response.UserResponse;
@@ -3672,6 +3673,11 @@ public class ApiResponseHelper implements ResponseGenerator {
         }
         response.setResponses(responses);
         return response;
+    }
+
+    @Override
+    public ListResponse<UpdateRouterResponse> createUpdateRouterResponse(List<Long> jobIds) {
+        return null;
     }
 
     @Override

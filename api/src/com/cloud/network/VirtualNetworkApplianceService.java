@@ -18,6 +18,7 @@ package com.cloud.network;
 
 import java.util.List;
 
+import org.apache.cloudstack.api.command.admin.router.UpdateRouterCmd;
 import org.apache.cloudstack.api.command.admin.router.UpgradeRouterCmd;
 import org.apache.cloudstack.api.command.admin.router.UpgradeRouterTemplateCmd;
 
@@ -68,4 +69,6 @@ public interface VirtualNetworkApplianceService {
     VirtualRouter findRouter(long routerId);
 
     List<Long> upgradeRouterTemplate(UpgradeRouterTemplateCmd cmd);
+
+    List<Long> updateRouter(UpdateRouterCmd cmd);
 }

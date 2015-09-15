@@ -29,4 +29,5 @@ public interface VirtualRouterDeployer {
     ExecutionResult createFileInVR(String routerIp, String path, String filename, String content);
     ExecutionResult prepareCommand(NetworkElementCommand cmd);
     ExecutionResult cleanupCommand(NetworkElementCommand cmd);
+    ExecutionResult copyFileToVR(String routerIp, String poolUuid, String localFilePath, String remoteTargetDirectory);
 }

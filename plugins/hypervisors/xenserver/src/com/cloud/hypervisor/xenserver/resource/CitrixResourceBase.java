@@ -959,6 +959,25 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
         return new ExecutionResult(rc.startsWith("succ#"), rc.substring(5));
     }
 
+    @Override
+    public ExecutionResult copyFileToVR(final String routerIp, final String poolUuid, final String localfile, final String remoteTargetDirectory) {
+        String localFilepath = null;
+        final Connection conn = getConnection();
+        try {
+            SR sr = getSRByNameLabel(conn, poolUuid);
+            String srUuid = sr.getUuid(conn);
+            localFilepath = "/var/run/sr-mount/" + srUuid + localfile;
+        } catch (XenAPIException e) {
+            e.printStackTrace();
+        } catch (XmlRpcException e) {
+            e.printStackTrace();
+        }
+        final String rc = callHostPlugin(conn, "vmops", "createFileInDomr", "domrip", routerIp, "srcfilepath", localFilepath, "dstfilepath", remoteTargetDirectory);
+        s_logger.debug("Copied file " + localFilepath + " to VR, with ip " + routerIp);
+
+        return new ExecutionResult(rc.startsWith("succ#"), rc.substring(5));
+    }
+
     protected SR createIsoSRbyURI(final Connection conn, final URI uri, final String vmName, final boolean shared) {
         try {
             final Map<String, String> deviceConfig = new HashMap<String, String>();

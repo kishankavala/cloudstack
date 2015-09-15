@@ -159,6 +159,7 @@ import org.apache.cloudstack.api.command.admin.router.ListVirtualRouterElementsC
 import org.apache.cloudstack.api.command.admin.router.RebootRouterCmd;
 import org.apache.cloudstack.api.command.admin.router.StartRouterCmd;
 import org.apache.cloudstack.api.command.admin.router.StopRouterCmd;
+import org.apache.cloudstack.api.command.admin.router.UpdateRouterCmd;
 import org.apache.cloudstack.api.command.admin.router.UpgradeRouterCmd;
 import org.apache.cloudstack.api.command.admin.router.UpgradeRouterTemplateCmd;
 import org.apache.cloudstack.api.command.admin.storage.AddImageStoreCmd;
@@ -3018,6 +3019,7 @@ public class ManagementServerImpl extends ManagerBase implements ManagementServe
         cmdList.add(UpdateLBHealthCheckPolicyCmd.class);
         cmdList.add(GetUploadParamsForTemplateCmd.class);
         cmdList.add(GetUploadParamsForVolumeCmd.class);
+        cmdList.add(UpdateRouterCmd.class);
         return cmdList;
     }
 

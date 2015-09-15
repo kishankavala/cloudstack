@@ -43,9 +43,14 @@ import javax.ejb.Local;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
+import com.cloud.storage.VMTemplateStoragePoolVO;
+import com.cloud.storage.Volume;
+import com.cloud.storage.VolumeVO;
+import com.cloud.storage.dao.VMTemplatePoolDao;
 import org.apache.cloudstack.alert.AlertService;
 import org.apache.cloudstack.alert.AlertService.AlertType;
 import org.apache.cloudstack.api.command.admin.router.RebootRouterCmd;
+import org.apache.cloudstack.api.command.admin.router.UpdateRouterCmd;
 import org.apache.cloudstack.api.command.admin.router.UpgradeRouterCmd;
 import org.apache.cloudstack.api.command.admin.router.UpgradeRouterTemplateCmd;
 import org.apache.cloudstack.config.ApiServiceConfiguration;
@@ -60,6 +65,8 @@ import org.apache.cloudstack.framework.jobs.impl.AsyncJobVO;
 import org.apache.cloudstack.managed.context.ManagedContextRunnable;
 import org.apache.cloudstack.network.topology.NetworkTopology;
 import org.apache.cloudstack.network.topology.NetworkTopologyContext;
+import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
+import org.apache.cloudstack.storage.datastore.db.StoragePoolVO;
 import org.apache.cloudstack.utils.identity.ManagementServerNode;
 import org.apache.cloudstack.utils.usage.UsageUtils;
 import org.apache.log4j.Logger;
@@ -366,6 +373,10 @@ Configurable, StateListener<State, VirtualMachine.Event, VirtualMachine> {
     protected ApiAsyncJobDispatcher _asyncDispatcher;
     @Inject
     OpRouterMonitorServiceDao _opRouterMonitorServiceDao;
+    @Inject
+    private VMTemplatePoolDao _tmpltPoolDao;
+    @Inject
+    PrimaryDataStoreDao _storagePoolDao;
 
     @Inject
     protected NetworkTopologyContext _networkTopologyContext;
@@ -2706,5 +2717,92 @@ Configurable, StateListener<State, VirtualMachine.Event, VirtualMachine> {
     @Override
     public boolean completeAggregatedExecution(final Network network, final List<DomainRouterVO> routers) throws AgentUnavailableException, ResourceUnavailableException {
         return aggregationExecution(Action.Finish, network, routers);
+    }
+
+    @Override
+    public List<Long> updateRouter(final UpdateRouterCmd cmd) {
+
+        List<DomainRouterVO> routers = new ArrayList<DomainRouterVO>();
+        int params = 0;
+
+        final Long routerId = cmd.getId();
+        if (routerId != null) {
+            params++;
+            final DomainRouterVO router = _routerDao.findById(routerId);
+            if (router != null) {
+                routers.add(router);
+            }
+        }
+
+        final Long domainId = cmd.getDomainId();
+        if (domainId != null) {
+            final String accountName = cmd.getAccount();
+            // List by account, if account Name is specified along with domainId
+            if (accountName != null) {
+                final Account account = _accountMgr.getActiveAccountByName(accountName, domainId);
+                if (account == null) {
+                    throw new InvalidParameterValueException("Account :" + accountName + " does not exist in domain: " + domainId);
+                }
+                routers = _routerDao.listRunningByAccountId(account.getId());
+            } else {
+                // List by domainId, account name not specified
+                routers = _routerDao.listRunningByDomain(domainId);
+            }
+            params++;
+        }
+
+        final Long clusterId = cmd.getClusterId();
+        if (clusterId != null) {
+            params++;
+            routers = _routerDao.listRunningByClusterId(clusterId);
+        }
+
+        final Long podId = cmd.getPodId();
+        if (podId != null) {
+            params++;
+            routers = _routerDao.listRunningByPodId(podId);
+        }
+
+        final Long zoneId = cmd.getZoneId();
+        if (zoneId != null) {
+            params++;
+            routers = _routerDao.listRunningByDataCenter(zoneId);
+        }
+
+        if (params > 1) {
+            throw new InvalidParameterValueException("Multiple parameters not supported. Specify only one among routerId/zoneId/podId/clusterId/accountId/domainId");
+        }
+
+        if (routers != null) {
+            return updateRouters(routers, cmd.getTemplateId());
+        }
+
+        return null;
+    }
+
+    private List<Long> updateRouters(final List<DomainRouterVO> routers, Long templateId) {
+        final List<Long> jobIds = new ArrayList<Long>();
+        for (final DomainRouterVO router : routers) {
+            //Get router volume
+            List<VolumeVO> volumes = _volumeDao.findByInstanceAndType(router.getId(), Volume.Type.ROOT);
+            if(volumes.size() != 1){
+                //Incorect volume size
+                //ToDo throw error or log exception
+                continue;
+            }
+            Volume rootVolume = volumes.get(0);
+            s_logger.debug("VR ROOT Vol "+rootVolume);
+            //Get storage poolId
+            long poolId = rootVolume.getPoolId();
+            s_logger.debug("PoolId "+poolId);
+            final StoragePoolVO pool = _storagePoolDao.findById(poolId);
+            s_logger.debug("Pool "+pool);
+            String poolUuid = pool.getUuid();
+            VMTemplateStoragePoolVO templatePool = _tmpltPoolDao.findByPoolTemplate(poolId, templateId);
+            s_logger.debug("Tmpl Pool "+templatePool);
+            //ToDo check status VMTemplateStoragePoolVO.Status.DOWNLOADED
+            _nwHelper.updateRouter(router, poolUuid, templatePool.getInstallPath());
+        }
+        return jobIds;
     }
 }

@@ -43,6 +43,8 @@ import com.cloud.agent.api.CheckS2SVpnConnectionsAnswer;
 import com.cloud.agent.api.CheckS2SVpnConnectionsCommand;
 import com.cloud.agent.api.GetDomRVersionAnswer;
 import com.cloud.agent.api.GetDomRVersionCmd;
+import com.cloud.agent.api.UpdateRouterCommand;
+import com.cloud.agent.api.UpdateRouterAnswer;
 import com.cloud.agent.api.GetRouterAlertsAnswer;
 import com.cloud.agent.api.routing.AggregationControlCommand;
 import com.cloud.agent.api.routing.AggregationControlCommand.Action;
@@ -256,6 +258,23 @@ public class VirtualRoutingResource {
             return new GetDomRVersionAnswer(cmd, result.getDetails());
         }
         return new GetDomRVersionAnswer(cmd, result.getDetails(), lines[0], lines[1]);
+    }
+
+    private Answer execute(UpdateRouterCommand cmd) {
+        final ExecutionResult copy_result = _vrDeployer.copyFileToVR(cmd.getRouterAccessIp(), cmd.getPoolUuid(), cmd.getLocalFile(), cmd.getRemoteTargetDirectory());
+        if (!copy_result.isSuccess()) {
+            return new UpdateRouterAnswer(cmd, "UpdateRouterCommand failed. Copy to VR failure");
+        }
+
+        final ExecutionResult result = _vrDeployer.executeInVR(cmd.getRouterAccessIp(), VRScripts.UPDATE_ROUTER, cmd.getRemoteTargetDirectory());
+        if (!result.isSuccess()) {
+            return new UpdateRouterAnswer(cmd, "UpdateRouterCommand failed");
+        }
+        String[] lines = result.getDetails().split("&");
+        if (lines.length != 2) {
+            return new UpdateRouterAnswer(cmd, result.getDetails());
+        }
+        return new UpdateRouterAnswer(cmd, result.getDetails(), lines[0], lines[1]);
     }
 
     public boolean configure(final String name, final Map<String, Object> params) throws ConfigurationException {

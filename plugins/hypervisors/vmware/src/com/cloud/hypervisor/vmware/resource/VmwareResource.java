@@ -712,6 +712,19 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
     }
 
     @Override
+    public ExecutionResult copyFileToVR(final String routerIp, final String poolUuid, final String localFilepath, final String remoteTargetDirectory) {
+        VmwareManager mgr = getServiceContext().getStockObject(VmwareManager.CONTEXT_STOCK_NAME);
+        File keyFile = mgr.getSystemVMKeyFile();
+        try {
+            SshHelper.scpTo(routerIp, 3922, "root", keyFile, null, remoteTargetDirectory, localFilepath, null);
+        } catch (Exception e) {
+            s_logger.warn("Failed to copy file " + localFilepath + " to VR " + routerIp, e);
+            return new ExecutionResult(false, e.getMessage());
+        }
+        return new ExecutionResult(true, null);
+    }
+
+    @Override
     public ExecutionResult prepareCommand(NetworkElementCommand cmd) {
         //Update IP used to access router
         cmd.setRouterAccessIp(getRouterSshControlIp(cmd));

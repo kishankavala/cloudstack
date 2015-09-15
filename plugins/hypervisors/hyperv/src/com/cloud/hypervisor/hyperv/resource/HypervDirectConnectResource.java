@@ -662,6 +662,19 @@ public class HypervDirectConnectResource extends ServerResourceBase implements S
     }
 
     @Override
+    public ExecutionResult copyFileToVR(final String routerIp, final String poolUuid, final String localFilePath, final String remoteTargetDirectory) {
+        File keyFile = getSystemVMKeyFile();
+        String error = null;
+        try {
+            SshHelper.scpTo(routerIp, 3922, "root", keyFile, null, remoteTargetDirectory, localFilePath, null);
+        } catch (final Exception e) {
+            s_logger.warn("Failed to copy file " + localFilePath + " to VR " + routerIp, e);
+            error = e.getMessage();
+        }
+        return new ExecutionResult(error == null, error);
+    }
+
+    @Override
     public ExecutionResult prepareCommand(NetworkElementCommand cmd) {
         //Update IP used to access router
         cmd.setRouterAccessIp(getRouterSshControlIp(cmd));

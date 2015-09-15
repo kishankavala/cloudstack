@@ -23,6 +23,7 @@ import java.util.Map;
 import javax.ejb.Local;
 import javax.naming.ConfigurationException;
 
+import org.apache.cloudstack.api.command.admin.router.UpdateRouterCmd;
 import org.apache.cloudstack.api.command.admin.router.UpgradeRouterCmd;
 import org.apache.cloudstack.api.command.admin.router.UpgradeRouterTemplateCmd;
 import org.springframework.stereotype.Component;
@@ -248,6 +249,11 @@ public class MockVpcVirtualNetworkApplianceManager extends ManagerBase implement
     @Override
     public List<Long> upgradeRouterTemplate(final UpgradeRouterTemplateCmd cmd) {
         return null;  //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    @Override
+    public List<Long> updateRouter(UpdateRouterCmd cmd) {
+        return null;
     }
 
     @Override

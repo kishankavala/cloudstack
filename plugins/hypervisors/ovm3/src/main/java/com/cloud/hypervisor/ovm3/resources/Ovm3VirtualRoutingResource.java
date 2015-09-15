@@ -126,6 +126,11 @@ public class Ovm3VirtualRoutingResource implements VirtualRouterDeployer {
         return new ExecutionResult(true, null);
     }
 
+    @Override
+    public ExecutionResult copyFileToVR(String routerIp, String poolUuid, String localFilePath, String remoteTargetDirectory) {
+        return null;
+    }
+
     private ExecutionResult cleanupNetworkElementCommand(IpAssocCommand cmd) {
         return new ExecutionResult(true, null);
     }

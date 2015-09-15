@@ -75,6 +75,7 @@ public class VRScripts {
     public static final String VPC_STATIC_ROUTE = "vpc_staticroute.sh";
     public static final String VPN_L2TP = "vpn_l2tp.sh";
     public static final String UPDATE_HOST_PASSWD = "update_host_passwd.sh";
+    public static final String UPDATE_ROUTER = "update_vr.py";
 
     public static final String VR_CFG = "vr_cfg.sh";
 
