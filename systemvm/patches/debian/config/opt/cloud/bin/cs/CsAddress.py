@@ -95,9 +95,25 @@ class CsAddress(CsDataBag):
                 return ip
         return None
 
+    def check_if_link_exists(self,dev):
+        cmd="ip link show dev %s"%dev
+        result=CsHelper.execute(cmd)
+        if(len(result)!=0):
+           return True
+        else:
+           return False
+
+    def check_if_link_up(self,dev):
+        cmd="ip link show dev %s | tr '\n' ' ' | cut -d ' ' -f 9"%dev
+        result=CsHelper.execute(cmd)
+        if(result[0].lower()=="up"):
+            return True
+        else:
+            return False
+
+
     def process(self):
         route = CsRoute()
-        found_defaultroute = False
 
         for dev in self.dbag:
             if dev == "id":
@@ -105,8 +121,17 @@ class CsAddress(CsDataBag):
             ip = CsIP(dev, self.config)
 
             for address in self.dbag[dev]:
+                if(address["nw_type"]!="public"):
+                    continue
 
-                gateway = str(address["gateway"])
+                #check if link is up
+                if (not self.check_if_link_exists(dev)):
+                    logging.info("link %s does not exist, so not processing"%dev)
+                    continue
+                if not self.check_if_link_up(dev):
+                   cmd="ip link set %s up"%dev
+                   CsHelper.execute(cmd)
+
                 network = str(address["network"])
 
                 ip.setAddress(address)
@@ -122,16 +147,15 @@ class CsAddress(CsDataBag):
                         "Address %s on device %s not configured", ip.ip(), dev)
                     if CsDevice(dev, self.config).waitfordevice():
                         ip.configure()
+                route.add_route(dev, network)
 
-                if address["nw_type"] != "control":
-                    route.add_route(dev, network)
+        # once we start processing public ip's we need to verify there
+        # is a default route and add if needed
+        if not route.defaultroute_exists():
+            cmdline=self.config.get_cmdline_instance()
+            if(cmdline.get_gateway()):
+                route.add_defaultroute(cmdline.get_gateway())
 
-                # once we start processing public ip's we need to verify there
-                # is a default route and add if needed
-                if address["nw_type"] == "public" and not found_defaultroute:
-                    if not route.defaultroute_exists():
-                        if route.add_defaultroute(gateway):
-                            found_defaultroute = True
 
 
 class CsInterface:
@@ -299,6 +323,10 @@ class CsIP:
             CsRpsrfs(self.dev).enable()
             self.post_config_change("add")
 
+        '''For isolated/redundant and dhcpsrvr routers, call this method after the post_config is complete '''
+        if not self.config.is_vpc():
+            self.setup_router_control()
+
     def check_is_up(self):
         """ Ensure device is up """
         cmd = "ip link show %s | grep 'state DOWN'" % self.getDevice()
@@ -336,6 +364,19 @@ class CsIP:
             return self.address['public_ip']
         return "unknown"
 
+    def setup_router_control(self):
+        if self.config.is_vpc():
+            return
+        
+        self.fw.append(
+            ["filter", "", "-A FW_OUTBOUND -m state --state RELATED,ESTABLISHED -j ACCEPT"])
+        self.fw.append(
+            ["filter", "", "-A INPUT -i eth1 -p tcp -m tcp --dport 3922 -m state --state NEW,ESTABLISHED -j ACCEPT"])
+        
+        self.fw.append(["filter", "", "-P INPUT DROP"])
+        self.fw.append(["filter", "", "-P FORWARD DROP"])
+
+        
     def fw_router(self):
         if self.config.is_vpc():
             return
@@ -402,11 +443,6 @@ class CsIP:
                             "-A PREROUTING -i %s -m state --state NEW " % self.dev +
                             "-j CONNMARK --set-xmark %s/0xffffffff" % self.dnum])
 
-        if self.get_type() in ["control"]:
-            self.fw.append(
-                ["filter", "", "-A FW_OUTBOUND -m state --state RELATED,ESTABLISHED -j ACCEPT"])
-            self.fw.append(
-                ["filter", "", "-A INPUT -i %s -p tcp -m tcp --dport 3922 -m state --state NEW -j ACCEPT" % self.dev])
         self.fw.append(['', 'front', '-A FORWARD -j NETWORK_STATS'])
         self.fw.append(['', 'front', '-A INPUT -j NETWORK_STATS'])
         self.fw.append(['', 'front', '-A OUTPUT -j NETWORK_STATS'])
@@ -414,7 +450,7 @@ class CsIP:
         self.fw.append(['', '', '-A NETWORK_STATS -i eth2 -o eth0'])
         self.fw.append(['', '', '-A NETWORK_STATS -o eth2 ! -i eth0 -p tcp'])
         self.fw.append(['', '', '-A NETWORK_STATS -i eth2 ! -o eth0 -p tcp'])
-
+        
     def fw_vpcrouter(self):
         if not self.config.is_vpc():
             return
@@ -480,6 +516,11 @@ class CsIP:
         self.fw.append(["", "", "-A NETWORK_STATS -i eth2 -o eth0 -p tcp"])
         self.fw.append(["", "", "-A NETWORK_STATS ! -i eth0 -o eth2 -p tcp"])
         self.fw.append(["", "", "-A NETWORK_STATS -i eth2 ! -o eth0 -p tcp"])
+        
+        self.fw.append(["filter", "", "-A INPUT -i eth0 -p tcp -m tcp --dport 3922 -m state --state NEW,ESTABLISHED -j ACCEPT"])
+        
+        self.fw.append(["filter", "", "-P INPUT DROP"])
+        self.fw.append(["filter", "", "-P FORWARD DROP"])
 
     def post_config_change(self, method):
         route = CsRoute()
@@ -491,6 +532,7 @@ class CsIP:
 
         self.fw_router()
         self.fw_vpcrouter()
+
         # On deletion nw_type will no longer be known
         if self.get_type() in ["guest"] and self.config.is_vpc():
 

@@ -3250,7 +3250,6 @@ public class ManagementServerImpl extends ManagerBase implements ManagementServe
     }
 
     @Override
-    @ActionEvent(eventType = EventTypes.EVENT_PROXY_REBOOT, eventDescription = "", async = true)
     public VMInstanceVO rebootSystemVM(final RebootSystemVmCmd cmd) {
         final VMInstanceVO systemVm = _vmInstanceDao.findByIdTypes(cmd.getId(), VirtualMachine.Type.ConsoleProxy, VirtualMachine.Type.SecondaryStorageVm);
 
@@ -3642,9 +3641,9 @@ public class ManagementServerImpl extends ManagerBase implements ManagementServe
      * @throws InvalidParameterValueException
      */
     private void checkForKeyByPublicKey(final RegisterSSHKeyPairCmd cmd, final Account owner) throws InvalidParameterValueException {
-        final SSHKeyPairVO existingPair = _sshKeyPairDao.findByPublicKey(owner.getAccountId(), owner.getDomainId(), cmd.getPublicKey());
+        final SSHKeyPairVO existingPair = _sshKeyPairDao.findByPublicKey(owner.getAccountId(), owner.getDomainId(), getPublicKeyFromKeyKeyMaterial(cmd.getPublicKey()));
         if (existingPair != null) {
-            throw new InvalidParameterValueException("A key pair with name '" + cmd.getPublicKey() + "' already exists for this account.");
+            throw new InvalidParameterValueException("A key pair with key '" + cmd.getPublicKey() + "' already exists for this account.");
         }
     }
 
@@ -3674,7 +3673,7 @@ public class ManagementServerImpl extends ManagerBase implements ManagementServe
      * @return
      * @throws InvalidParameterValueException
      */
-    private String getPublicKeyFromKeyKeyMaterial(final String key) throws InvalidParameterValueException {
+    protected String getPublicKeyFromKeyKeyMaterial(final String key) throws InvalidParameterValueException {
         final String publicKey = SSHKeysHelper.getPublicKeyFromKeyMaterial(key);
 
         if (publicKey == null) {
