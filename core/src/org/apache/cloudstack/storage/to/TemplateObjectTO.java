@@ -19,6 +19,7 @@
 
 package org.apache.cloudstack.storage.to;
 
+import com.cloud.storage.Storage;
 import org.apache.cloudstack.engine.subsystem.api.storage.TemplateInfo;
 
 import com.cloud.agent.api.to.DataObjectType;
@@ -44,6 +45,7 @@ public class TemplateObjectTO implements DataTO {
     private Long size;
     private Long physicalSize;
     private Hypervisor.HypervisorType hypervisorType;
+    private Storage.TemplateType templateType;
 
     public TemplateObjectTO() {
 
@@ -73,6 +75,7 @@ public class TemplateObjectTO implements DataTO {
         this.accountId = template.getAccountId();
         this.name = template.getUniqueName();
         this.format = template.getFormat();
+        this.templateType = template.getTemplateType();
         if (template.getDataStore() != null) {
             this.imageDataStore = template.getDataStore().getTO();
         }
@@ -213,6 +216,10 @@ public class TemplateObjectTO implements DataTO {
 
     public void setPhysicalSize(Long physicalSize) {
         this.physicalSize = physicalSize;
+    }
+
+    public Storage.TemplateType getTemplateType(){
+        return this.templateType;
     }
 
     @Override

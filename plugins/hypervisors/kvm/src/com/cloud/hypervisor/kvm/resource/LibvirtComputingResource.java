@@ -312,7 +312,12 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
     }
 
     @Override
-    public ExecutionResult copyFileToVR(final String routerIp, final String poolUuid, final String localFilepath, final String remoteTargetDirectory) {
+    public ExecutionResult copyFileToVR(final String routerIp, final String poolUuid, final String localFile, final String remoteTargetDirectory) {
+        KVMStoragePool primaryPool = _storagePoolMgr.getStoragePool(StoragePoolType.NetworkFilesystem, poolUuid);
+        String localFilepath = primaryPool.getLocalPath()+File.separatorChar+localFile;
+        s_logger.debug("primaryPath: "+primaryPool.getLocalPath());
+        s_logger.debug("File.pathSeparator: "+File.separatorChar);
+        s_logger.debug("localFile: "+localFile);
         final File permKey = new File("/root/.ssh/id_rsa.cloud");
         String error = null;
 

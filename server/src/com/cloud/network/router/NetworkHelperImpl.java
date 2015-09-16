@@ -29,6 +29,7 @@ import javax.ejb.Local;
 import javax.inject.Inject;
 
 import com.cloud.agent.api.UpdateRouterCommand;
+import com.cloud.agent.api.routing.NetworkElementCommand;
 import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
 import org.apache.cloudstack.framework.config.ConfigKey;
@@ -760,7 +761,8 @@ public class NetworkHelperImpl implements NetworkHelper {
     @Override
     public String updateRouter(final VirtualRouter vr, final String poolUuid, final String templateName){
         UpdateRouterCommand cmd = new UpdateRouterCommand(poolUuid, templateName, "/opt/cloud");
-        cmd.setRouterAccessIp(vr.getPrivateIpAddress());
+        cmd.setRouterAccessIp(_routerControlHelper.getRouterControlIp(vr.getId()));
+        cmd.setAccessDetail(NetworkElementCommand.ROUTER_IP, _routerControlHelper.getRouterControlIp(vr.getId()));
         try {
             _agentMgr.send(vr.getHostId(), cmd);
         } catch (AgentUnavailableException e) {

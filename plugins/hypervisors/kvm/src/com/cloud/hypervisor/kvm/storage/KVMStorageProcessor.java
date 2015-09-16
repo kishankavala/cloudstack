@@ -214,6 +214,12 @@ public class KVMStorageProcessor implements StorageProcessor {
             } else if (destData instanceof TemplateObjectTO) {
                 final TemplateObjectTO destTempl = (TemplateObjectTO)destData;
                 primaryVol = storagePoolMgr.copyPhysicalDisk(tmplVol, destTempl.getUuid(), primaryPool, cmd.getWaitInMillSeconds());
+//                if(template.getTemplateType().equals(Storage.TemplateType.SYSTEMUPDATE)){
+//                    //Any special handling here?
+//                    primaryVol = storagePoolMgr.copyPhysicalDisk(tmplVol, destTempl.getUuid(), primaryPool, cmd.getWaitInMillSeconds());
+//                } else {
+//                    primaryVol = storagePoolMgr.copyPhysicalDisk(tmplVol, destTempl.getUuid(), primaryPool, cmd.getWaitInMillSeconds());
+//                }
             } else {
                 primaryVol = storagePoolMgr.copyPhysicalDisk(tmplVol, UUID.randomUUID().toString(), primaryPool, cmd.getWaitInMillSeconds());
             }

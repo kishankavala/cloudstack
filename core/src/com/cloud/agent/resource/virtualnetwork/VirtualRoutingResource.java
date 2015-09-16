@@ -110,6 +110,8 @@ public class VirtualRoutingResource {
 
             if (cmd instanceof AggregationControlCommand) {
                 return execute((AggregationControlCommand)cmd);
+            } else  if (cmd instanceof UpdateRouterCommand) {
+                return execute((UpdateRouterCommand)cmd);
             }
 
             if (_vrAggregateCommandsSet.containsKey(routerName)) {
@@ -261,12 +263,15 @@ public class VirtualRoutingResource {
     }
 
     private Answer execute(UpdateRouterCommand cmd) {
-        final ExecutionResult copy_result = _vrDeployer.copyFileToVR(cmd.getRouterAccessIp(), cmd.getPoolUuid(), cmd.getLocalFile(), cmd.getRemoteTargetDirectory());
+        String routerIp = cmd.getRouterAccessIp();
+        //getAccessDetail(NetworkElementCommand.ROUTER_IP);
+        s_logger.debug("Router IP " + routerIp);
+        final ExecutionResult copy_result = _vrDeployer.copyFileToVR(routerIp, cmd.getPoolUuid(), cmd.getLocalFile(), cmd.getRemoteTargetDirectory());
         if (!copy_result.isSuccess()) {
             return new UpdateRouterAnswer(cmd, "UpdateRouterCommand failed. Copy to VR failure");
         }
 
-        final ExecutionResult result = _vrDeployer.executeInVR(cmd.getRouterAccessIp(), VRScripts.UPDATE_ROUTER, cmd.getRemoteTargetDirectory());
+        final ExecutionResult result = _vrDeployer.executeInVR(cmd.getRouterAccessIp(), VRScripts.UPDATE_ROUTER, cmd.getRemoteTargetDirectory()+cmd.getLocalFile());
         if (!result.isSuccess()) {
             return new UpdateRouterAnswer(cmd, "UpdateRouterCommand failed");
         }
