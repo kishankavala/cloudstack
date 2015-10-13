@@ -19,7 +19,7 @@
 #set -x
  
 usage() {
-  printf "Usage: %s [vhd file in secondary storage] [uuid of the source sr] [name label]  \n" $(basename $0) 
+  printf "Usage: %s [vhd file in secondary storage] [uuid of the source sr] [name label] [filetype 1 if vhd else 0] \n" $(basename $0)
 }
 
 cleanup()
@@ -38,7 +38,15 @@ if [ -z $1 ]; then
   exit 0
 else
   mountpoint=${1%/*}
-  vhdfilename=${1##*/}
+  filename=${1##*/}
+fi
+
+if [ -z $4 ]; then
+  usage
+  echo "4#no filetype"
+  exit 0
+else
+   isvhd=$4
 fi
 
 if [ -z $2 ]; then
@@ -77,16 +85,31 @@ if [ $? -ne 0 ]; then
   exit 0
 fi
 
-vhdfile=$localmp/$vhdfilename
-if [ ${vhdfile%.vhd} == ${vhdfile} ] ; then
-  vhdfile=$(ls $vhdfile/*.vhd)
-  if [ $? -ne 0 ]; then
-    echo "7#There is no vhd file under $mountpoint"
-    cleanup
-    exit 0
-  fi
+if [ "$isvhd" == "1" ]; then
+   vhdfile=$localmp/$filename
+   if [ ${vhdfile%.vhd} == ${vhdfile} ] ; then
+      vhdfile=$(ls $vhdfile/*.vhd)
+      if [ $? -ne 0 ]; then
+         echo "7#There is no vhd file under $mountpoint"
+         cleanup
+         exit 0
+      fi
+   fi
+else
+   destPath=/var/run/sr-mount/$sruuid/$namelabel
+   cp -f $localmp/$filename $destPath
+   result=$?
+   if [ $result -ne 0 ]; then
+      echo "failed to copy file under $mountpoint"
+      cleanup
+      exit "$result"
+   fi
+   #find the size of the file.
+   size=$(stat --format %s $destPath)
+   echo "0#$namelabel#$size"
+   cleanup
+   exit 0
 fi
-
 
 
 VHDUTIL="/opt/cloud/bin/vhd-util"
@@ -158,7 +181,7 @@ elif [ $type == "lvmoiscsi" -o $type == "lvm" -o $type == "lvmohba" ]; then
     exit 0
   fi
   copyvhd $desvhd $vhdfile $lvsize $type
-else 
+else
   echo "15#doesn't support sr type $type"
   cleanup
   exit 0

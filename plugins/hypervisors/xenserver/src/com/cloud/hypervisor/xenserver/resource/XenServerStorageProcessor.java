@@ -711,8 +711,8 @@ public class XenServerStorageProcessor implements StorageProcessor {
     private String copy_vhd_from_secondarystorage(final Connection conn, final String mountpoint, final String sruuid, final int wait) {
         final String nameLabel = "cloud-" + UUID.randomUUID().toString();
         final String results =
-                hypervisorResource.callHostPluginAsync(conn, "vmopspremium", "copy_vhd_from_secondarystorage", wait, "mountpoint", mountpoint, "sruuid", sruuid, "namelabel",
-                        nameLabel);
+                    hypervisorResource.callHostPluginAsync(conn, "vmopspremium", "copy_vhd_from_secondarystorage", wait, "mountpoint", mountpoint, "sruuid", sruuid, "namelabel",
+                            nameLabel, "file_type", "1");
         String errMsg = null;
         if (results == null || results.isEmpty()) {
             errMsg = "copy_vhd_from_secondarystorage return null";
@@ -846,6 +846,20 @@ public class XenServerStorageProcessor implements StorageProcessor {
                 }
 
                 final String srUuid = sr.getUuid(conn);
+
+                //This is a hack to figure out the file type.
+                //I could not get the file type info in this context.
+                String pathVals[]=tmplPath.split(File.separator);
+                if(!pathVals[pathVals.length-1].contains("vhd")){
+                    String fileExtension=null;
+                    for(ImageFormat format : ImageFormat.values()){
+                        if(pathVals[pathVals.length-1].contains(format.getFileExtension())){
+                           fileExtension=format.getFileExtension();
+                           break;
+                        }
+                    }
+                   return rawCopy(conn,tmplPath, srUuid, wait,fileExtension);
+                }
                 final String tmplUuid = copy_vhd_from_secondarystorage(conn, tmplPath, srUuid, wait);
                 final VDI tmplVdi = getVDIbyUuid(conn, tmplUuid);
 
@@ -893,6 +907,44 @@ public class XenServerStorageProcessor implements StorageProcessor {
         }
 
         return new CopyCmdAnswer("not implemented yet");
+    }
+
+    private Answer rawCopy(Connection conn, String tmplPath, String srUuid, int wait, String fileExtension) {
+        final String result = copy_file_from_secondarystorage(conn, tmplPath, srUuid, wait,fileExtension);
+        final String resultVals[]=result.split("#");
+        String uuidToReturn = resultVals[1];
+        Long physicalSize = Long.parseLong(resultVals[2]);
+        final TemplateObjectTO newVol = new TemplateObjectTO();
+        newVol.setUuid(uuidToReturn);
+        newVol.setPath(uuidToReturn);
+        if (physicalSize != null) {
+            newVol.setSize(physicalSize);
+        }
+        newVol.setFormat(ImageFormat.TAR);
+
+        return new CopyCmdAnswer(newVol);
+
+    }
+
+    private String copy_file_from_secondarystorage(Connection conn, String mountpoint, String sruuid, int wait, String fileExtension) {
+        final String nameLabel=UUID.randomUUID().toString()+"."+fileExtension;
+        final  String results =
+                hypervisorResource.callHostPluginAsync(conn, "vmopspremium", "copy_vhd_from_secondarystorage", wait, "mountpoint", mountpoint, "sruuid", sruuid, "namelabel",
+                        nameLabel, "file_type", "0");
+        String errMsg = null;
+        if (results == null || results.isEmpty()) {
+            errMsg = "copy_vhd_from_secondarystorage return null";
+        } else {
+            final String[] tmp = results.split("#");
+            final String status = tmp[0];
+            if (status.equals("0")) {
+                return results;
+            } else {
+                errMsg = tmp[1];
+            }
+        }
+        s_logger.warn(errMsg);
+        throw new CloudRuntimeException(errMsg);
     }
 
     @Override

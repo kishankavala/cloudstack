@@ -93,8 +93,10 @@ def copy_vhd_from_secondarystorage(session, args):
     mountpoint = args['mountpoint']
     sruuid = args['sruuid']
     namelabel = args['namelabel']
+    file_type=args['file_type']
+
     try:
-        cmd = ["bash", "/opt/cloud/bin/copy_vhd_from_secondarystorage.sh", mountpoint, sruuid, namelabel]
+        cmd = ["bash", "/opt/cloud/bin/copy_vhd_from_secondarystorage.sh", mountpoint, sruuid, namelabel, file_type]
         txt = util.pread2(cmd)
     except:
         txt = '10#failed'
