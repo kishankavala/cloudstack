@@ -23,7 +23,7 @@ def install_rpms():
 	while (file_no < len(manifest_config.options("packages"))):
 		pkg = manifest_config.get("packages", "FILE"+str(file_no));
 		logging.info("Installing " + pkg)
-		subprocess.call(str("apt-get install "+pkg).split());
+		subprocess.call(str("dpkg -i "+pkg).split());
 		file_no = file_no+1;
 
 def exec_commands(section):
