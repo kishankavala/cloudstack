@@ -893,7 +893,7 @@ public class XenServerStorageProcessor implements StorageProcessor {
         return new CopyCmdAnswer("not implemented yet");
     }
 
-    private Answer rawCopy(Connection conn, String tmplPath, String srUuid, int wait, String fileExtension) {
+    protected Answer rawCopy(Connection conn, String tmplPath, String srUuid, int wait, String fileExtension) {
         final String result = copy_file_from_secondarystorage(conn, tmplPath, srUuid, wait,fileExtension);
         final String resultVals[]=result.split("#");
         String uuidToReturn = resultVals[1];

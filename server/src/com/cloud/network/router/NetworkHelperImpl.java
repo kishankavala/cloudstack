@@ -28,6 +28,7 @@ import javax.annotation.PostConstruct;
 import javax.ejb.Local;
 import javax.inject.Inject;
 
+import com.cloud.agent.api.UpdateRouterAnswer;
 import com.cloud.agent.api.UpdateRouterCommand;
 import com.cloud.agent.api.routing.NetworkElementCommand;
 import org.apache.cloudstack.context.CallContext;
@@ -147,6 +148,8 @@ public class NetworkHelperImpl implements NetworkHelper {
     protected ServiceOfferingDao _serviceOfferingDao;
     @Inject
     protected VirtualMachineManager _itMgr;
+    @Inject
+    private RouterControlHelper _routerControlHelper;
     @Inject
     protected IpAddressManager _ipAddrMgr;
 
@@ -783,17 +786,20 @@ public class NetworkHelperImpl implements NetworkHelper {
     }
 
     @Override
-    public String updateRouter(final VirtualRouter vr, final String poolUuid, final String templateName){
-        UpdateRouterCommand cmd = new UpdateRouterCommand(poolUuid, templateName, "/opt/cloud");
+    public String updateRouter(final VirtualRouter vr, final String poolUuid, final String templateName) throws ResourceUnavailableException {
+        UpdateRouterCommand cmd = new UpdateRouterCommand(poolUuid, templateName, "/tmp/cloud");
         cmd.setRouterAccessIp(_routerControlHelper.getRouterControlIp(vr.getId()));
         cmd.setAccessDetail(NetworkElementCommand.ROUTER_IP, _routerControlHelper.getRouterControlIp(vr.getId()));
         try {
-            _agentMgr.send(vr.getHostId(), cmd);
-        } catch (AgentUnavailableException e) {
-            e.printStackTrace();
+            UpdateRouterAnswer answer = (UpdateRouterAnswer)_agentMgr.send(vr.getHostId(), cmd);
+            if(answer.getResult()) {
+                return answer.getTemplateVersion();
+            } else {
+                throw new ResourceUnavailableException("Unable to send command", VirtualRouter.class, vr.getId());
+            }
         } catch (OperationTimedoutException e) {
-            e.printStackTrace();
+            s_logger.warn("Timed Out", e);
+            throw new AgentUnavailableException("Unable to send commands to virtual router ", vr.getHostId(), e);
         }
-        return null;
     }
 }

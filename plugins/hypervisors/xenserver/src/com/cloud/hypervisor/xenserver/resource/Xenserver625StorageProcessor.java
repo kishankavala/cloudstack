@@ -193,16 +193,6 @@ public class Xenserver625StorageProcessor extends XenServerStorageProcessor {
                     volumeDirectory = volumePath.substring(0, index);
                 }
 
-                srcSr = createFileSr(conn, uri.getHost() + ":" + uri.getPath(), volumeDirectory);
-
-                final Set<VDI> setVdis = srcSr.getVDIs(conn);
-
-                if (setVdis.size() != 1) {
-                    return new CopyCmdAnswer("Expected 1 VDI template but found " + setVdis.size() + " VDI template(s) on: " + uri.getHost() + ":" + uri.getPath() + "/" + volumeDirectory);
-                }
-
-                final VDI srcVdi = setVdis.iterator().next();
-
                 boolean managed = false;
                 String storageHost = null;
                 String managedStoragePoolName = null;
@@ -254,6 +244,32 @@ public class Xenserver625StorageProcessor extends XenServerStorageProcessor {
                         destSr = srs.iterator().next();
                     }
                 }
+
+                //This is a hack to figure out the file type.
+                //I could not get the file type info in this context.
+                String pathVals[]=volumePath.split(File.separator);
+                if(!pathVals[pathVals.length-1].contains("vhd")){
+                    String fileExtension=null;
+                    for(Storage.ImageFormat format : Storage.ImageFormat.values()){
+                        if(pathVals[pathVals.length-1].contains(format.getFileExtension())){
+                            fileExtension=format.getFileExtension();
+                            break;
+                        }
+                    }
+                    final String tmplPath = uri.getHost() + ":" + uri.getPath() + "/" + srcData.getPath();
+                    return rawCopy(conn,tmplPath, destSr.getUuid(conn), wait,fileExtension);
+                }
+
+
+                srcSr = createFileSr(conn, uri.getHost() + ":" + uri.getPath(), volumeDirectory);
+
+                final Set<VDI> setVdis = srcSr.getVDIs(conn);
+
+                if (setVdis.size() != 1) {
+                    return new CopyCmdAnswer("Expected 1 VDI template but found " + setVdis.size() + " VDI template(s) on: " + uri.getHost() + ":" + uri.getPath() + "/" + volumeDirectory);
+                }
+
+                final VDI srcVdi = setVdis.iterator().next();
 
                 task = srcVdi.copyAsync(conn, destSr, null, null);
 

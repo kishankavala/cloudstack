@@ -72,6 +72,11 @@ else
 fi
 
 localmp=/var/run/cloud_mount/$(uuidgen -r)
+localStorageLocation='/var/cloud'
+
+if [ ! -d $localStorageLocation ]; then
+   mkdir -p $localStorageLocation
+fi
 
 mkdir -p $localmp
 if [ $? -ne 0 ]; then
@@ -96,11 +101,15 @@ if [ "$isvhd" == "1" ]; then
       fi
    fi
 else
-   destPath=/var/run/sr-mount/$sruuid/$namelabel
+   if [ $type -eq "lvm" ]; then
+      destPath=$localStorageLocation
+   else
+      destPath=/var/run/sr-mount/$sruuid/$namelabel
+   fi
    cp -f $localmp/$filename $destPath
    result=$?
    if [ $result -ne 0 ]; then
-      echo "failed to copy file under $mountpoint"
+      echo "failed to copy file $filename to $destPath"
       cleanup
       exit "$result"
    fi

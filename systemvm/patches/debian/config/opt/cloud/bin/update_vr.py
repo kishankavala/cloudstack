@@ -23,7 +23,9 @@ def install_rpms():
 	while (file_no < len(manifest_config.options("packages"))):
 		pkg = manifest_config.get("packages", "FILE"+str(file_no));
 		logging.info("Installing " + pkg)
-		subprocess.call(str("dpkg -i "+pkg).split());
+    		command = "dpkg -i "+pkg	
+		p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+    		result = p.communicate()[0]
 		file_no = file_no+1;
 
 def exec_commands(section):
@@ -32,14 +34,15 @@ def exec_commands(section):
 	while (cmd_no < len(manifest_config.options(section))):
 		cmd = manifest_config.get(section, "CMD"+str(cmd_no));
 		logging.info("Executing Command " + cmd)
-		subprocess.call(shlex.split(cmd));
+		p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+    		result = p.communicate()[0]
 		cmd_no = cmd_no+1;
 
 def untar(fname):
     logging.info("untar file: '%s '" % sys.argv[1])
     if (tarfile.is_tarfile(fname)):
         tar = tarfile.open(fname)
-        tar.extractall(path="update")
+        tar.extractall(path="/tmp/update")
         tar.close()
     else:
         logging.error("Not a tar file: '%s '" % sys.argv[1])
@@ -58,7 +61,7 @@ if len(sys.argv) < 2:
         sys.exit(1)
 untar(sys.argv[1])
 cmdargs = str(sys.argv)
-manifest_config.read("manifest.nfo");
+manifest_config.read("/tmp/update/manifest.nfo");
 prev_ver = manifest_config.get("general", "PREV_VERSION");
 next_ver = manifest_config.get("general", "NEXT_VERSION");
 logging.info("Updating from "+prev_ver+" to "+next_ver)

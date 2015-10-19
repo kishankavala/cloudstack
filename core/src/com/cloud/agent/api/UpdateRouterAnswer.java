@@ -23,15 +23,13 @@ public class UpdateRouterAnswer extends Answer {
     public static final String ROUTER_NAME = "router.name";
     public static final String ROUTER_IP = "router.ip";
     String templateVersion;
-    String scriptsVersion;
 
     protected UpdateRouterAnswer() {
     }
 
-    public UpdateRouterAnswer(UpdateRouterCommand cmd, String details, String templateVersion, String scriptsVersion) {
+    public UpdateRouterAnswer(UpdateRouterCommand cmd, String details, String templateVersion) {
         super(cmd, true, details);
         this.templateVersion = templateVersion;
-        this.scriptsVersion = scriptsVersion;
     }
 
     public UpdateRouterAnswer(UpdateRouterCommand cmd, String details) {
@@ -40,9 +38,5 @@ public class UpdateRouterAnswer extends Answer {
 
     public String getTemplateVersion() {
         return this.templateVersion;
-    }
-
-    public String getScriptsVersion() {
-        return this.scriptsVersion;
     }
 }

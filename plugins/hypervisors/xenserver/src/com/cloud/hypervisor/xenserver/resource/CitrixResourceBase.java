@@ -966,13 +966,18 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
         try {
             SR sr = getSRByNameLabel(conn, poolUuid);
             String srUuid = sr.getUuid(conn);
-            localFilepath = "/var/run/sr-mount/" + srUuid + localfile;
+            //Use /var/cloud for local storage else use SR mount path
+            localFilepath = "lvm".equalsIgnoreCase(sr.getType(conn)) ? ("/var/cloud/" + localfile) : ("/var/run/sr-mount/" + srUuid + "/" + localfile);
         } catch (XenAPIException e) {
-            e.printStackTrace();
+            final String msg = "Failed to copy file "+localFilepath+"to VR with IP: "+routerIp;
+            s_logger.warn(msg, e);
+            throw new CloudRuntimeException(msg, e);
         } catch (XmlRpcException e) {
-            e.printStackTrace();
+            final String msg = "Failed to copy file "+localFilepath+" to VR with IP: "+routerIp;
+            s_logger.warn(msg, e);
+            throw new CloudRuntimeException(msg, e);
         }
-        final String rc = callHostPlugin(conn, "vmops", "createFileInDomr", "domrip", routerIp, "srcfilepath", localFilepath, "dstfilepath", remoteTargetDirectory);
+        final String rc = callHostPlugin(conn, "vmops", "copyFileToDomr", "domrip", routerIp, "srcfilepath", localFilepath, "dstfilepath", remoteTargetDirectory);
         s_logger.debug("Copied file " + localFilepath + " to VR, with ip " + routerIp);
 
         return new ExecutionResult(rc.startsWith("succ#"), rc.substring(5));
@@ -2900,6 +2905,7 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
     }
 
     protected abstract String getPatchFilePath();
+
 
     public String getPerfMon(final Connection conn, final Map<String, String> params, final int wait) {
         String result = null;

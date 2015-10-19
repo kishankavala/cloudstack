@@ -3677,7 +3677,17 @@ public class ApiResponseHelper implements ResponseGenerator {
 
     @Override
     public ListResponse<UpdateRouterResponse> createUpdateRouterResponse(List<Long> jobIds) {
-        return null;
+        ListResponse<UpdateRouterResponse> response = new ListResponse<UpdateRouterResponse>();
+        List<UpdateRouterResponse> responses = new ArrayList<UpdateRouterResponse>();
+        for (Long jobId : jobIds) {
+            UpdateRouterResponse routerResponse = new UpdateRouterResponse();
+            AsyncJob job = _entityMgr.findById(AsyncJob.class, jobId);
+            routerResponse.setAsyncJobId((job.getUuid()));
+            routerResponse.setObjectName("asyncjobs");
+            responses.add(routerResponse);
+        }
+        response.setResponses(responses);
+        return response;
     }
 
     @Override

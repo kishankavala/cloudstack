@@ -68,7 +68,6 @@ public class Xenserver625Resource extends XenServerResourceNewBase {
                     "/opt/xensource/bin/create_privatetemplate_from_snapshot.sh " +
                     "/opt/xensource/bin/vhd-util " +
                     "/opt/cloud/bin/copy_vhd_to_secondarystorage.sh " +
-                    "/opt/cloud/bin/copy_vhd_from_secondarystorage.sh " +
                     "/opt/cloud/bin/create_privatetemplate_from_snapshot.sh " +
                     "/opt/cloud/bin/vhd-util";
 

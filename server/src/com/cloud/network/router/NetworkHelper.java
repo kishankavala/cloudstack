@@ -90,5 +90,5 @@ public interface NetworkHelper {
     public abstract LinkedHashMap<Network, List<? extends NicProfile>> configureGuestNic(RouterDeploymentDefinition routerDeploymentDefinition)
             throws ConcurrentOperationException, InsufficientAddressCapacityException;
 
-    public String updateRouter(VirtualRouter vr, String poolUuid, String templateName);
+    public String updateRouter(VirtualRouter vr, String poolUuid, String templateName) throws ResourceUnavailableException;
 }

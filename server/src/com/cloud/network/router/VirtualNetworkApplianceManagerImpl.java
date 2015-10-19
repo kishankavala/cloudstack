@@ -2793,7 +2793,13 @@ Configurable, StateListener<State, VirtualMachine.Event, VirtualMachine> {
             VMTemplateStoragePoolVO templatePool = _tmpltPoolDao.findByPoolTemplate(poolId, templateId);
             s_logger.debug("Tmpl Pool "+templatePool);
             //ToDo check status VMTemplateStoragePoolVO.Status.DOWNLOADED
-            _nwHelper.updateRouter(router, poolUuid, templatePool.getInstallPath());
+            try {
+                String version = _nwHelper.updateRouter(router, poolUuid, templatePool.getInstallPath());
+                router.setTemplateVersion(version);
+                _routerDao.update(router.getId(), router);
+            } catch (ResourceUnavailableException e) {
+                //ToDo throw error or log exception
+            }
         }
         return jobIds;
     }
